@@ -1,0 +1,10 @@
+Train job  917062  on gpu06
+0: Traceback (most recent call last):
+0:   File "/home/marksteller/work_fast/miniconda3/envs/knowledgeBoosting/lib/python3.9/runpy.py", line 197, in _run_module_as_main
+0:     return _run_code(code, main_globals, None,
+0:   File "/home/marksteller/work_fast/miniconda3/envs/knowledgeBoosting/lib/python3.9/runpy.py", line 87, in _run_code
+0:     exec(code, run_globals)
+0:   File "/beegfs/work_fast/marksteller/knowledge-boosting-test/sach_shared/src/trainer.py", line 126, in <module>
+0:     assert not os.path.exists(args.run_dir), \
+0: AssertionError: run_dir logdir/test already exists. Use --resume if you intend to resume an existing run.
+srun: error: gpu06: task 0: Exited with exit code 1

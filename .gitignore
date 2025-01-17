@@ -178,3 +178,8 @@ TFG*
 ### random
 test_example_gt.py
 syn_train.sh
+
+# Training and test data
+*.wav
+*.pt
+

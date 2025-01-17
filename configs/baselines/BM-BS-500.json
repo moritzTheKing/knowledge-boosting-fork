@@ -1,5 +1,5 @@
 {
-    "pl_module": "src.pl_modules.ts_hear_binaural_ssep_pl_module_part.TSHearPLModule",
+    "pl_module": "src.pl_modules.ts_hear_binaural_ssep_pl_module.TSHearPLModule",
     "pl_module_args": {
         "model": "src.models.tfgridnet_ssep_causal_torch_stft_layernorm.net.Net",
         "init_ckpt": null,

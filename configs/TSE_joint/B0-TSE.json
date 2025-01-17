@@ -49,7 +49,7 @@
             "generate_embeddings": true,
             "use_masked_attention": true
         },
-        "big_model_init_ckpt": "",
+        "big_model_init_ckpt": null,
         "joint_model": "src.models.joint-model.net.JointModel",
         "joint_model_params": {
             "compression": 1,
@@ -67,28 +67,28 @@
     "eval_batch_size": 8,
     "num_workers": 16,
     "grad_clip": 1,
-    "train_dataset": "src.datasets.BakedTSE_dataset.BakedTSE_dataset",
+    "train_dataset": "datasets.BakedTSE_dataset.BakedTSE_dataset",
     "train_data_args": {
         "sr": 16000,
         "resample_rate": null,
         "dset": "train",
-        "mixtures_dir": "/data/new_TSE_100k",
+        "mixtures_dir": "data",
         "num_samples": 100000
     },
-    "val_dataset": "src.datasets.BakedTSE_dataset.BakedTSE_dataset",
+    "val_dataset": "datasets.BakedTSE_dataset.BakedTSE_dataset",
     "val_data_args": {
         "sr": 16000,
         "resample_rate": null,
         "dset": "val",
-        "mixtures_dir": "/data/new_TSE_100k",
+        "mixtures_dir": "data",
         "num_samples": 5000
     },
-    "test_dataset": "src.datasets.BakedTSE_dataset.BakedTSE_dataset",
+    "test_dataset": "datasets.BakedTSE_dataset.BakedTSE_dataset",
     "test_data_args": {
         "sr": 16000,
         "resample_rate": null,
         "dset": "test",
-        "mixtures_dir": "/data/new_TSE_100k",
+        "mixtures_dir": "data",
         "num_samples": 5000
     }
 }

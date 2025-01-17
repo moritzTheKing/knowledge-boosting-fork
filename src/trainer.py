@@ -3,7 +3,7 @@ import argparse
 
 import torch
 import lightning.pytorch as pl
-from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.loggers import WandbLogger, TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 import wandb
 from lightning.pytorch.callbacks import LearningRateMonitor
@@ -24,9 +24,8 @@ def main(args, hparams):
     pl_module = utils.import_attr(hparams.pl_module)(**hparams.pl_module_args)
 
     # Init trainer
-    wandb_run_name = os.path.basename(args.run_dir.rstrip('/'))
-    wandb_logger = WandbLogger(
-        project='kd-inference', save_dir=args.run_dir, name=wandb_run_name)
+    #wandb_run_name = os.path.basename(args.run_dir.rstrip('/'))
+    wandb_logger = TensorBoardLogger(save_dir=args.run_dir, name='lightning_logs') #WandbLogger(project='kd-inference', save_dir=args.run_dir, name=wandb_run_name)
 
     # Init callbacks
     callbacks = [utils.import_attr(hparams.pl_logger)()]
@@ -53,8 +52,9 @@ def main(args, hparams):
 
     # Init trainer
     trainer = pl.Trainer(
-        accelerator="gpu", devices=torch.cuda.device_count(), strategy='ddp_find_unused_parameters_true', max_epochs=hparams.epochs,
-        logger=wandb_logger, callbacks=callbacks, limit_train_batches=args.frac, gradient_clip_val=grad_clip,
+        accelerator="cpu", #devices=torch.cuda.device_count(), strategy='ddp_find_unused_parameters_true', 
+        max_epochs=hparams.epochs,
+        logger=wandb_logger, limit_train_batches=args.frac, gradient_clip_val=grad_clip, # callbacks=callbacks
         limit_val_batches=args.frac, limit_test_batches=args.frac)
 
     # Maximum 4 worker per GPU
@@ -90,7 +90,7 @@ def main(args, hparams):
 
     # Initialize the train dataset
     train_ds = utils.import_attr(hparams.train_dataset)(**hparams.train_data_args)
-    train_batch_size = int(hparams.batch_size / torch.cuda.device_count()) # Batch size per GPU
+    train_batch_size = int(hparams.batch_size / 1) # Batch size per GPU
     train_dl = torch.utils.data.DataLoader(
         train_ds, batch_size=train_batch_size, shuffle=True,
         num_workers=num_workers, pin_memory=True
