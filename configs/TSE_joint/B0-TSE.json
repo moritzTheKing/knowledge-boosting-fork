@@ -72,7 +72,7 @@
         "sr": 16000,
         "resample_rate": null,
         "dset": "train",
-        "mixtures_dir": "data",
+        "mixtures_dir": "src/data",
         "num_samples": 100000
     },
     "val_dataset": "datasets.BakedTSE_dataset.BakedTSE_dataset",
@@ -80,7 +80,7 @@
         "sr": 16000,
         "resample_rate": null,
         "dset": "val",
-        "mixtures_dir": "data",
+        "mixtures_dir": "src.data",
         "num_samples": 5000
     },
     "test_dataset": "datasets.BakedTSE_dataset.BakedTSE_dataset",
@@ -88,7 +88,7 @@
         "sr": 16000,
         "resample_rate": null,
         "dset": "test",
-        "mixtures_dir": "data",
+        "mixtures_dir": "src.data",
         "num_samples": 5000
     }
 }

@@ -20,13 +20,13 @@ import json
 
 
 # Ignore scaper normalization warnings
-warnings.filterwarnings(
+"""warnings.filterwarnings(
     "ignore", message="Soundscape audio is clipping!")
 warnings.filterwarnings(
     "ignore", message="Peak normalization applied")
 warnings.filterwarnings(
     "ignore", message="Scale factor for peak normalization is extreme")
-
+"""
 class PRASimulator():
     def __init__(self):
         pass
@@ -55,6 +55,13 @@ class BakedTSE_dataset(Dataset):
         logging.info(f"Loading dataset: {dset} {sr=} {resample_rate=} ...")
         logging.info(f"- Mixtures directory: {mixtures_dir}")
 
+        num_samples
+        p = Path(self.mixtures_dir)
+        if p.exists:
+            print(p)
+        else:
+            print("ey digga der Pfad wird nicht erkannt")
+    
         self.samples = sorted(list(Path(self.mixtures_dir).glob('[0-9]*')))
         self.samples = self.samples[0:num_samples]
                      
@@ -70,7 +77,6 @@ class BakedTSE_dataset(Dataset):
 
     def __len__(self):
         print("__len__ aufgerufen")
-
         return len(self.samples)
 
     def __getitem__(self, idx):
