@@ -4,7 +4,7 @@
 #SBATCH --partition=gpu
 #SBATCH --job-name=KB
 #SBATCH --mem=16000M
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gres=gpu:1080:2
 #SBATCH --cpus-per-task=2   
 #SBATCH --output=./slurm.%j.out
 

@@ -50,9 +50,11 @@ def main(args, hparams):
         print("USING GRADIENT CLIPPING", hparams.grad_clip)
         grad_clip = hparams.grad_clip
 
+    print("wie viele GPUs wurden genutzt:", torch.cuda.device_count())
+
     # Init trainer
     trainer = pl.Trainer(
-        accelerator="cpu", #devices=torch.cuda.device_count(), strategy='ddp_find_unused_parameters_true', 
+        accelerator="cpu", devices=torch.cuda.device_count(), strategy='ddp_find_unused_parameters_true', 
         max_epochs=hparams.epochs,
         logger=wandb_logger, limit_train_batches=args.frac, gradient_clip_val=grad_clip, # callbacks=callbacks
         limit_val_batches=args.frac, limit_test_batches=args.frac)

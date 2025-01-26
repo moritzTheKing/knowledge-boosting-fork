@@ -42,8 +42,6 @@ class BakedTSE_dataset(Dataset):
         assert dset in ['train', 'val', 'test'], \
             "`dset` must be one of ['train', 'val', 'test']"
         
-        print("__init__ aufgerufen")
-
         self.dset = dset
         self.mixtures_dir = os.path.join(mixtures_dir, dset)
         
@@ -54,13 +52,6 @@ class BakedTSE_dataset(Dataset):
 
         logging.info(f"Loading dataset: {dset} {sr=} {resample_rate=} ...")
         logging.info(f"- Mixtures directory: {mixtures_dir}")
-
-        num_samples
-        p = Path(self.mixtures_dir)
-        if p.exists:
-            print(p)
-        else:
-            print("ey digga der Pfad wird nicht erkannt")
     
         self.samples = sorted(list(Path(self.mixtures_dir).glob('[0-9]*')))
         self.samples = self.samples[0:num_samples]
@@ -72,16 +63,12 @@ class BakedTSE_dataset(Dataset):
             self.resampler = lambda a: a
             self.sr = sr
         
-        print("num_samples Position 1", num_samples)
-
 
     def __len__(self):
-        print("__len__ aufgerufen")
         return len(self.samples)
 
     def __getitem__(self, idx):
         sample_dir = self.samples[idx].__str__()
-        print("__getitem__ aufgerufen")
         # Load Audio
         src1_path = os.path.join(sample_dir, 'source00.wav')
         # print("SOURCE 1", src1_path, os.path.exists(src1_path))
@@ -93,8 +80,6 @@ class BakedTSE_dataset(Dataset):
         target2, sample_rate = torchaudio.load(src2_path)
         embed2_path = os.path.join(sample_dir, 'spk_id01.pt')
         spk_id2 = torch.load(embed2_path)
-
-        print("num_samples Position 2", spk_id2)
 
         # Create mixture by summing the two
         mixture = target1 + target2
