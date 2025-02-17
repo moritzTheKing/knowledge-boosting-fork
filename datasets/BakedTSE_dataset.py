@@ -20,13 +20,13 @@ import json
 
 
 # Ignore scaper normalization warnings
-"""warnings.filterwarnings(
+warnings.filterwarnings(
     "ignore", message="Soundscape audio is clipping!")
 warnings.filterwarnings(
     "ignore", message="Peak normalization applied")
 warnings.filterwarnings(
     "ignore", message="Scale factor for peak normalization is extreme")
-"""
+
 class PRASimulator():
     def __init__(self):
         pass

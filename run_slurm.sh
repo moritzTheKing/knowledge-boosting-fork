@@ -2,15 +2,14 @@
 
 #SBATCH --time=2-00:00:00
 #SBATCH --partition=gpu
-#SBATCH --job-name=KB
-#SBATCH --mem=16000M
-#SBATCH --gres=gpu:1080:2
+#SBATCH --job-name=too_big
+#SBATCH --mem=32000M
+#SBATCH --gres=gpu:1080:3
 #SBATCH --cpus-per-task=2   
-#SBATCH --output=./slurm.%j.out
+#SBATCH --output=./output/slurm.%j.out
 
 #SBATCH --begin=now
 
 echo "Train job " $SLURM_JOB_ID " on "$(hostname)
-rm -r logdir
 
-HYDRA_FULL_ERROR=1 srun -l python -m src.trainer --run_dir logdir/test --config configs/TSE_joint/B0-TSE.json
+HYDRA_FULL_ERROR=1 srun -l python -m src.trainer --run_dir logdir --config configs/baselines/BM-TSE-500.json

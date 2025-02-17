@@ -7,6 +7,7 @@ from lightning.pytorch.loggers import WandbLogger, TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 import wandb
 from lightning.pytorch.callbacks import LearningRateMonitor
+from lightning import Fabric
 
 import src.utils as utils
 
@@ -23,10 +24,12 @@ def main(args, hparams):
     # Initialize the model
     pl_module = utils.import_attr(hparams.pl_module)(**hparams.pl_module_args)
 
+    # print stuff for easier logging
+    utils.count_parameters(pl_module)
+
     # Init trainer
     #wandb_run_name = os.path.basename(args.run_dir.rstrip('/'))
     wandb_logger = TensorBoardLogger(save_dir=args.run_dir, name='lightning_logs') #WandbLogger(project='kd-inference', save_dir=args.run_dir, name=wandb_run_name)
-
     # Init callbacks
     callbacks = [utils.import_attr(hparams.pl_logger)()]
     if not args.test:
@@ -50,11 +53,10 @@ def main(args, hparams):
         print("USING GRADIENT CLIPPING", hparams.grad_clip)
         grad_clip = hparams.grad_clip
 
-    print("wie viele GPUs wurden genutzt:", torch.cuda.device_count())
-
+    print("so viele GPUs habe ich zur Verfügung", torch.cuda.device_count())
     # Init trainer
     trainer = pl.Trainer(
-        accelerator="cpu", devices=torch.cuda.device_count(), strategy='ddp_find_unused_parameters_true', 
+        accelerator="cpu", #devices=torch.cuda.device_count(), strategy='ddp', 
         max_epochs=hparams.epochs,
         logger=wandb_logger, limit_train_batches=args.frac, gradient_clip_val=grad_clip, # callbacks=callbacks
         limit_val_batches=args.frac, limit_test_batches=args.frac)

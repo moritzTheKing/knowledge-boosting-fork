@@ -183,3 +183,6 @@ syn_train.sh
 *.wav
 *.pt
 
+# bachelorthesis specific
+*.out
+*.yml

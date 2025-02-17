@@ -15,49 +15,34 @@ from src.losses.LossFn import LossFn
 import src.utils as utils
 
 class TSHearPLModule(pl.LightningModule):
-    def __init__(self, joint_model, joint_model_params, 
-                 small_model, small_model_params, 
-                 big_model, big_model_params,
+    def __init__(self, 
+                 model, model_params,
                  sr, freeze_bm = False,
                  init_ckpt = None,
                  optimizer=None, optimizer_params=None,
                  scheduler=None, scheduler_params = None,
-                 big_model_init_ckpt = None, loss_params=None):
+                 loss_params=None):
         super(TSHearPLModule, self).__init__()
 
-        _small_model = utils.import_attr(small_model)(**small_model_params)
-        _big_model = utils.import_attr(big_model)(**big_model_params) 
+        self.model = utils.import_attr(model)(**model_params) 
+
+        """print("D has the value: ", self.model.D)
+        print("L has the value: ", self.model.L)
+        print("I has the value: ", self.model.I)
+        print("J has the value: ", self.model.J)
+        print("B has the value: ", self.model.B)
+        print("H has the value: ", self.model.H)"""
         
-        """print("small D has the value: ", _small_model.emb_dim)
-        print("small L has the value: ", _small_model.L)
-        print("small I has the value: ", _small_model.I)
-        print("small J has the value: ", _small_model.J)
-        print("small B has the value: ", _small_model.B)
-        print("small H has the value: ", _small_model.H)
-
-        print("big D has the value: ", _big_model.D)
-        print("big L has the value: ", _big_model.L)
-        print("big I has the value: ", _big_model.I)
-        print("big J has the value: ", _big_model.J)
-        print("big B has the value: ", _big_model.B)
-        print("big H has the value: ", _big_model.H)"""
-
-        if big_model_init_ckpt is not None:
-            bm_ckpt = torch.load(big_model_init_ckpt)
-            _big_model.load_state_dict(bm_ckpt)
-            # state_dict = torch.load(big_model_init_ckpt)['state_dict']
+        if init_ckpt is not None:
+            m_ckpt = torch.load(init_ckpt)
+            self.model.load_state_dict(m_ckpt)
+            # state_dict = torch.load(init_ckpt)['state_dict']
             # state_dict = {k[6:] : v for k, v in state_dict.items() if k.startswith('model.') }
 
         if freeze_bm:
-            for param in _big_model.parameters():
+            for param in self.model.parameters():
                 param.requires_grad = False
 
-        # print("PL MODULE SMALL", self.small_model)
-        # print("PL MODULE BIG", self.big_model)
-
-        self.joint_model = utils.import_attr(joint_model)(small_model = _small_model,
-                                                          big_model = _big_model,
-                                                          **joint_model_params)
         # debug_overflow = DebugUnderflowOverflow(self.joint_model)
         self.sr = sr
 
@@ -102,57 +87,34 @@ class TSHearPLModule(pl.LightningModule):
             self.scheduler = scheduler
 
     def forward(self, x):
-        return self.joint_model(x)['output']
+        return self.model(x)['output']
 
     def _step(self, batch, step='train'):
         inputs, targets = batch
         batch_size = inputs['mixture'].shape[0]
 
         # Forward pass
-        y_bm, y_sm = self.joint_model(inputs)
-        output_sm = y_sm['output']
-        output_bm = y_bm['output']
+        y_m = self.model(inputs)
+        output_m = y_m['output']
 
         # Compute loss and reorder outputs
-        loss_sm = self._loss(pred=output_sm, tgt=targets['target'])
-        loss_bm = self._loss(pred=output_bm, tgt=targets['target'])
+        loss_m = self._loss(pred=output_m, tgt=targets['target'])
 
         # Log metrics for large model
-        snr_i_bm = torch.mean(self._metric_i(snr, inputs['mixture'], output_bm, targets['target']))
-        si_snr_i_bm = torch.mean(self._metric_i(si_snr, inputs['mixture'], output_bm, targets['target']))
-
-
-        # Log metrics for small model
-        snr_i_sm = torch.mean(self._metric_i(snr, inputs['mixture'], output_sm, targets['target']))
-
-
-        si_snr_i_sm = torch.mean(self._metric_i(si_snr, inputs['mixture'], output_sm, targets['target']))
-
+        snr_i_m = torch.mean(self._metric_i(snr, inputs['mixture'], output_m, targets['target']))
+        si_snr_i_m = torch.mean(self._metric_i(si_snr, inputs['mixture'], output_m, targets['target']))
 
         # Log small model metrics
         on_step = step == 'train'
         self.log(
-            f'{step}/loss_sm', loss_sm, batch_size=batch_size, on_step=on_step,
+            f'{step}/loss_sm', loss_m, batch_size=batch_size, on_step=on_step,
             on_epoch=True, prog_bar=True, sync_dist=True)
         self.log(
-            f'{step}/snr_i_sm', snr_i_sm.mean(),
+            f'{step}/snr_i_sm', snr_i_m.mean(),
             batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=False,
             sync_dist=True)
         self.log(
-            f'{step}/si_snr_i_sm', si_snr_i_sm.mean(),
-            batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
-            sync_dist=True)
-        
-
-        self.log(
-            f'{step}/loss_bm', loss_bm, batch_size=batch_size, on_step=on_step,
-            on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log(
-            f'{step}/snr_i_bm', snr_i_bm.mean(),
-            batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=False,
-            sync_dist=True)
-        self.log(
-            f'{step}/si_snr_i_bm', si_snr_i_bm.mean(),
+            f'{step}/si_snr_i_sm', si_snr_i_m.mean(),
             batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
             sync_dist=True)
 
@@ -160,20 +122,18 @@ class TSHearPLModule(pl.LightningModule):
         if step in ['val', 'test']:
             pass
 
-        output_bm = output_bm / torch.abs(output_bm).max() * torch.abs(targets['target']).max()
-        output_sm = output_sm / torch.abs(output_sm).max() * torch.abs(targets['target']).max()
+        output_m = output_m / torch.abs(output_m).max() * torch.abs(targets['target']).max()
 
         sample = {
             'mixture': inputs['mixture'],
             'target': targets['target'],
-            'output_sm': output_sm.detach(),
-            'output_bm': output_bm.detach(),
+            'output_m': output_m.detach(),
         }
 
-        return loss_sm, loss_bm, sample
+        return loss_m, sample
 
     def get_torch_model(self):
-        return self.joint_model
+        return self.model
 
     def _loss(self, pred, tgt, **kwargs):
         return self.loss_fn(pred, tgt, **kwargs)
@@ -185,31 +145,31 @@ class TSHearPLModule(pl.LightningModule):
         return torch.stack(_vals)
 
     def training_step(self, batch, batch_idx):
-        loss_sm, loss_bm, sample = self._step(batch, step='train')
+        loss_m, sample = self._step(batch, step='train')
 
         # Save some outputs for visualization
         if batch_idx % 200 == 0:
             self.train_samples.append(sample)
 
-        return loss_sm
+        return loss_m
 
     def validation_step(self, batch, batch_idx):
-        _, _, sample = self._step(batch, step='val')
+        _, sample = self._step(batch, step='val')
 
         # Save some outputs for visualization
         if batch_idx % 10 == 0:
             self.val_samples.append(sample)
 
-        return sample['output_sm'], sample['output_bm']
+        return sample['output_m']
 
     def test_step(self, batch, batch_idx):
-        _, _, sample = self._step(batch, step='test')
+        _, sample = self._step(batch, step='test') # hier ggf noch was ändern
 
         # Save some outputs for visualization
         if batch_idx % 10 == 0:
             self.val_samples.append(sample)
 
-        return sample['output_sm'], sample['output_bm']
+        return sample['output_m']
 
     def configure_optimizers(self):
         if self.scheduler is not None:

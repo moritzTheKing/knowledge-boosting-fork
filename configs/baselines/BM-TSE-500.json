@@ -36,34 +36,34 @@
         }
     },
     "grad_clip": 1,
-    "pl_logger": "src.pl_modules.ts_hear_binaural_SE_pl_module_part.TSHearLogger",
-    "val_logger": "src.pl_modules.ts_hear_binaural_SE_pl_module_part.ValHistLogger",
-    "train_dataset": "src.datasets.BakedTSE_dataset.BakedTSE_dataset",
+    "pl_logger": "src.pl_modules.ts_hear_binaural_TSE_pl_module_part.TSHearLogger",
+    "val_logger": "src.pl_modules.ts_hear_binaural_TSE_pl_module_part.ValHistLogger",
+    "train_dataset": "datasets.BakedTSE_dataset.BakedTSE_dataset",
     "train_data_args": {
-        "mixtures_dir": "/data/new_TSE_100k",
+        "mixtures_dir": "src/data",
         "dset": "train",
         "num_samples": 100000,
         "sr": 16000,
         "resample_rate": null
     },
-    "val_dataset": "src.datasets.BakedTSE_dataset.BakedTSE_dataset",
+    "val_dataset": "datasets.BakedTSE_dataset.BakedTSE_dataset",
     "val_data_args": {
-        "mixtures_dir": "/data/new_TSE_100k",
+        "mixtures_dir": "src/data",
         "dset": "val",
         "num_samples": 5000,
         "sr": 16000,
         "resample_rate": null
     },
-    "test_dataset": "src.datasets.BakedTSE_dataset.BakedTSE_dataset",
+    "test_dataset": "datasets.BakedTSE_dataset.BakedTSE_dataset",
     "test_data_args": {
-        "mixtures_dir": "/data/new_TSE_100k",
+        "mixtures_dir": "src/data",
         "dset": "test",
         "num_samples": 5000,
         "sr": 16000,
         "resample_rate": null
     },
     "epochs": 100,
-    "batch_size": 8,
+    "batch_size": 3,
     "eval_batch_size": 8,
     "num_workers": 16
 }
