@@ -28,7 +28,7 @@ class TSHearPLModule(pl.LightningModule):
         _small_model = utils.import_attr(small_model)(**small_model_params)
         _big_model = utils.import_attr(big_model)(**big_model_params) 
         
-        """print("small D has the value: ", _small_model.emb_dim)
+        """print("small D has the value: ", small_model_params.D)
         print("small L has the value: ", _small_model.L)
         print("small I has the value: ", _small_model.I)
         print("small J has the value: ", _small_model.J)

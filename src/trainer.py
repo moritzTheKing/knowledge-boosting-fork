@@ -56,7 +56,7 @@ def main(args, hparams):
     print("so viele GPUs habe ich zur Verfügung", torch.cuda.device_count())
     # Init trainer
     trainer = pl.Trainer(
-        accelerator="cpu", #devices=torch.cuda.device_count(), strategy='ddp', 
+        accelerator="gpu", devices=torch.cuda.device_count(), strategy='ddp', 
         max_epochs=hparams.epochs,
         logger=wandb_logger, limit_train_batches=args.frac, gradient_clip_val=grad_clip, # callbacks=callbacks
         limit_val_batches=args.frac, limit_test_batches=args.frac)
