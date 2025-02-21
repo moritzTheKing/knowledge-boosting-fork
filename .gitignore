@@ -184,5 +184,4 @@ syn_train.sh
 *.pt
 
 # bachelorthesis specific
-*.out
 *.yml
