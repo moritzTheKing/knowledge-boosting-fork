@@ -9,6 +9,8 @@ import wandb
 from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning import Fabric
 
+import time
+
 import src.utils as utils
 
 def main(args, hparams):    
@@ -56,7 +58,7 @@ def main(args, hparams):
     print("so viele GPUs habe ich zur Verfügung", torch.cuda.device_count())
     # Init trainer
     trainer = pl.Trainer(
-        accelerator="gpu", devices=torch.cuda.device_count(), strategy='ddp', 
+        accelerator="gpu", #devices=torch.cuda.device_count(), strategy='ddp', 
         max_epochs=hparams.epochs,
         logger=wandb_logger, limit_train_batches=args.frac, gradient_clip_val=grad_clip, # callbacks=callbacks
         limit_val_batches=args.frac, limit_test_batches=args.frac)
@@ -110,6 +112,7 @@ def main(args, hparams):
     # Train
     trainer.fit(pl_module, train_dl, val_dl, ckpt_path=ckpt_path)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, required=True)
@@ -134,5 +137,26 @@ if __name__ == '__main__':
     # Load hyperparameters
     hparams = utils.Params(args.config)
 
+    print("Wert von D aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["D"])
+    print("Wert von L aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["L"])
+    print("Wert von I aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["I"])
+    print("Wert von J aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["J"])
+    print("Wert von B aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["B"])
+    print("Wert von H aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["H"])
+
+    # Start der Zeitmessung
+    start_time = time.time()
+
     # Run
     main(args, hparams)
+
+    # Ende der Zeitmessung
+    end_time = time.time()
+    runtime_seconds = end_time - start_time
+
+    # Umrechnung in Stunden, Minuten und Sekunden
+    hours = int(runtime_seconds // 3600)
+    minutes = int((runtime_seconds % 3600) // 60)
+    seconds = runtime_seconds % 60
+
+    print(f"Job-Laufzeit: {hours}h {minutes}m {seconds:.2f}s")
