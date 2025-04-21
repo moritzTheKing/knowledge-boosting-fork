@@ -63,7 +63,7 @@
         "resample_rate": null
     },
     "epochs": 100,
-    "batch_size": 5,
-    "eval_batch_size": 5,
+    "batch_size": 3,
+    "eval_batch_size": 3,
     "num_workers": 16
 }

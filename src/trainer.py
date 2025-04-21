@@ -8,10 +8,12 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 import wandb
 from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning import Fabric
+import torchaudio
 
 import time
 
 import src.utils as utils
+
 
 def main(args, hparams):    
     os.makedirs(args.run_dir, exist_ok=True)
@@ -55,10 +57,10 @@ def main(args, hparams):
         print("USING GRADIENT CLIPPING", hparams.grad_clip)
         grad_clip = hparams.grad_clip
 
-    print("so viele GPUs habe ich zur Verfügung", torch.cuda.device_count())
+    print("so viele GPUs werden zum Training genutzt", torch.cuda.device_count())
     # Init trainer
     trainer = pl.Trainer(
-        accelerator="gpu", #devices=torch.cuda.device_count(), strategy='ddp', 
+        accelerator="gpu", devices=torch.cuda.device_count(), strategy='ddp', 
         max_epochs=hparams.epochs,
         logger=wandb_logger, limit_train_batches=args.frac, gradient_clip_val=grad_clip, # callbacks=callbacks
         limit_val_batches=args.frac, limit_test_batches=args.frac)
@@ -74,16 +76,23 @@ def main(args, hparams):
     else:
         # If testing, choose best if available
         if args.test:
-            best_ckpts = sorted(glob.glob(os.path.join(args.run_dir, 'best', '*.ckpt')))
+            best_ckpts = sorted(glob.glob(os.path.join(args.run_dir, '*.ckpt')))
+            print("best ckpts", best_ckpts)
             if len(best_ckpts) > 0:
                 ckpt_path = best_ckpts[-1]
         # If training, choose last if available
         else:
             if os.path.exists(os.path.join(args.run_dir, 'last.ckpt')):
                 ckpt_path = os.path.join(args.run_dir, 'last.ckpt')
+                print("last ckpts", ckpt_path)
+
+    print("the ckpt we used", ckpt_path)
 
     # Test and return if --test flag is set
     if args.test:
+        """inference = Inference()
+        inference.run(args)"""
+
         # Initialize the test dataset
         test_ds = utils.import_attr(hparams.test_dataset)(**hparams.test_data_args)
         batch_size = hparams.eval_batch_size
@@ -91,7 +100,66 @@ def main(args, hparams):
             test_ds, batch_size=batch_size, shuffle=False,
             num_workers=num_workers, pin_memory=True
         )
-        trainer.test(pl_module, test_dl, ckpt_path=ckpt_path, verbose=True)
+        results = trainer.test(pl_module, test_dl, ckpt_path=ckpt_path, verbose=True)
+
+        for loss in results:
+            print(f"Results hat {len(loss)} Elemente: {loss}")
+
+        #os.makedirs(args.output_dir, exist_ok=True)
+
+        # Angenommen, test_step gibt ein Tupel (output_sm, output_bm) pro Batch zurück,
+        # iterieren wir über alle Batches und speichern jedes Sample als WAV-Datei.
+        # Hierbei nehmen wir an, dass die Ausgaben 1D-Tensoren (Waveform) sind.
+        """sample_rate = hparams.pl_module_args["sr"]
+
+        # nur für die ersten 20 Batches aka 60 Samples
+        for batch_idx, batch_results in enumerate(results[:20]):
+            print(f"Batch {batch_idx} hat {len(batch_results)} Elemente: {batch_results}")
+            # TODO: batch_results enthält nicht ein Tupel (output_sm, output_bm) 
+            # sondern die Losses mit deren Werten
+            output_sm, output_bm = batch_results
+            # Iteriere über jedes Sample im Batch
+            for sample_idx in range(output_sm.size(0)):
+                # .detach() sorgt dafür, dass der Tensor vom Berechnungsgraphen getrennt wird, sodass keine Gradienten mehr berechnet werden
+                # TODO: brauche ich hier detach() überhaupt?
+                # .cpu() sorgt dafür, dass der Tensor auf die CPU verschoben wird (das erwartet torchaudio.save)
+                sm_audio = output_sm[sample_idx].detach().cpu()
+                bm_audio = output_bm[sample_idx].detach().cpu()
+
+                # Wenn das Audio nur einen Channel (Mono, kein Stereo) hat, füge einen Dummy-Kanal hinzu
+                if sm_audio.ndim == 1:
+                    sm_audio = sm_audio.unsqueeze(0)
+                if bm_audio.ndim == 1:
+                    bm_audio = bm_audio.unsqueeze(0)
+
+                sm_filename = os.path.join(args.output_dir, f"output_sm_batch{batch_idx}_sample{sample_idx}.wav")
+                bm_filename = os.path.join(args.output_dir, f"output_bm_batch{batch_idx}_sample{sample_idx}.wav")
+                
+                torchaudio.save(sm_filename, sm_audio, sample_rate)
+                torchaudio.save(bm_filename, bm_audio, sample_rate)
+
+        #TODO: noch Metriken wie PESQ auswerten lassen
+        pesq_metric = Metrics(name="PESQ")
+        all_pesq_scores = []
+
+        # pl_module.eval()
+        with torch.no_grad():
+            for batch in test_dl:
+                inputs, targets = batch
+
+                # hier wird forward aus tse_hear_binaural_TSE_pl_module aufgerufen
+                output_sm = pl_module(inputs)
+                
+                # hier wird forward aus Metricks aufgerufen
+                batch_pesq = pesq_metric(output_sm, targets['target'], inputs['mixture'])
+                
+                # Falls batch_pesq mehrere Werte (Channel) enthält. 
+                # Brauche ich das überhaupt noch weil in Metriks.forward steht ja auch sowas?
+                all_pesq_scores.append(batch_pesq) #.mean().item())
+
+        mean_pesq = sum(all_pesq_scores) / len(all_pesq_scores)
+        print(f"Mean PESQ over test set: {mean_pesq:.3f}")"""
+
         return
 
     # Initialize the train dataset
@@ -137,12 +205,7 @@ if __name__ == '__main__':
     # Load hyperparameters
     hparams = utils.Params(args.config)
 
-    print("Wert von D aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["D"])
-    print("Wert von L aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["L"])
-    print("Wert von I aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["I"])
-    print("Wert von J aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["J"])
-    print("Wert von B aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["B"])
-    print("Wert von H aus BM-TSE-500.json:", hparams.pl_module_args["model_params"]["H"])
+    print("Batchsize:", hparams.batch_size)
 
     # Start der Zeitmessung
     start_time = time.time()

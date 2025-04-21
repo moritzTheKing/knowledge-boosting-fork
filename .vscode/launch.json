@@ -2,6 +2,13 @@
     "version": "0.2.0",
     "configurations": [
     
+        
+
+
+
+    
+    
+    
     
     
     
@@ -19,7 +26,10 @@
                 "--run_dir",
                 "logs/",
                 "--config",
-                "configs/TSE_joint/B0-TSE.json"
+                "configs/TSE_joint/B0-TSE.json",
+                "--output_dir",
+                "./src/data/inference_samples",
+                "--test"
             ],
             "preLaunchTask": "deletingLogs",
             "justMyCode": false

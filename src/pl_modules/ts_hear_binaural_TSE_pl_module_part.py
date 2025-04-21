@@ -9,6 +9,10 @@ from torchmetrics.functional import(
     signal_noise_ratio as snr)
 import wandb
 from transformers.debug_utils import DebugUnderflowOverflow
+from torchmetrics.functional.audio.pesq import perceptual_evaluation_speech_quality as PESQ
+from torchmetrics.functional.audio.stoi import short_time_objective_intelligibility as STOI
+import torchaudio
+
 
 from src.losses.LossFn import LossFn
 
@@ -26,12 +30,12 @@ class TSHearPLModule(pl.LightningModule):
 
         self.model = utils.import_attr(model)(**model_params) 
 
-        """print("D has the value: ", self.model.D)
-        print("L has the value: ", self.model.L)
-        print("I has the value: ", self.model.I)
-        print("J has the value: ", self.model.J)
-        print("B has the value: ", self.model.B)
-        print("H has the value: ", self.model.H)"""
+        print("Wert von D aus SM-TSE-25.json model:", model_params['D'])
+        print("Wert von L aus SM-TSE-25.json model:", model_params['L'])
+        print("Wert von I aus SM-TSE-25.json model:", model_params['I'])
+        print("Wert von J aus SM-TSE-25.json model:", model_params['J'])
+        print("Wert von B aus SM-TSE-25.json model:", model_params['B'])
+        print("Wert von H aus SM-TSE-25.json model:", model_params['H'])
         
         if init_ckpt is not None:
             m_ckpt = torch.load(init_ckpt)
@@ -89,7 +93,7 @@ class TSHearPLModule(pl.LightningModule):
     def forward(self, x):
         return self.model(x)['output']
 
-    def _step(self, batch, step='train'):
+    def _step(self, batch, batch_idx, step='train'):
         inputs, targets = batch
         batch_size = inputs['mixture'].shape[0]
 
@@ -120,7 +124,41 @@ class TSHearPLModule(pl.LightningModule):
 
         # Log additional metrics for validation and test
         if step in ['val', 'test']:
-            pass
+            output_sm_norm = output_m / torch.abs(output_m).max() * torch.abs(targets['target']).max()
+            pesq_sm = PESQ(preds=output_sm_norm, target=targets['target'], fs=16000, mode="wb")
+            self.log(
+                f'{step}/pesq_sm', pesq_sm.mean().to(self.device),
+                batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
+                sync_dist=True)
+            
+            stoi_sm = STOI(preds=output_sm_norm, target=targets['target'], fs=16000)
+            self.log(
+                f'{step}/stoi', stoi_sm.mean().to(self.device),
+                batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
+                sync_dist=True)
+            
+            # save the samples for the first 20 batches to listen to them
+            if batch_idx < 20:
+                for sample_idx in range(output_m.size(0)):
+                    print("wir sind in der sample_idx for loop")
+                    # .detach() sorgt dafür, dass der Tensor vom Berechnungsgraphen getrennt wird, sodass keine Gradienten mehr berechnet werden
+                    # .cpu() sorgt dafür, dass der Tensor auf die CPU verschoben wird (das erwartet torchaudio.save)
+                    m_audio = output_m[sample_idx].detach().cpu()
+
+                    # Wenn das Audio nur einen Channel (Mono, kein Stereo) hat, füge einen Dummy-Kanal hinzu
+                    if m_audio.ndim == 1:
+                        m_audio = m_audio.unsqueeze(0)
+
+                    current_dir = os.path.dirname(__file__)
+                    base_output_dir = os.path.join(current_dir, "..", "data", "inference_samples")
+                    job_id = os.environ.get("SLURM_JOB_ID")
+
+                    # Erstelle einen Subordner, der nach der JobID benannt ist
+                    output_dir = os.path.join(base_output_dir, f"job_{job_id}_small")
+                    os.makedirs(output_dir, exist_ok=True)
+                    m_filename = os.path.join(output_dir, f"output_sm_batch{batch_idx}_sample{sample_idx}.wav")
+                    
+                    torchaudio.save(m_filename, m_audio, 16000)
 
         output_m = output_m / torch.abs(output_m).max() * torch.abs(targets['target']).max()
 
@@ -145,7 +183,7 @@ class TSHearPLModule(pl.LightningModule):
         return torch.stack(_vals)
 
     def training_step(self, batch, batch_idx):
-        loss_m, sample = self._step(batch, step='train')
+        loss_m, sample = self._step(batch, batch_idx, step='train')
 
         # Save some outputs for visualization
         if batch_idx % 200 == 0:
@@ -154,7 +192,7 @@ class TSHearPLModule(pl.LightningModule):
         return loss_m
 
     def validation_step(self, batch, batch_idx):
-        _, sample = self._step(batch, step='val')
+        _, sample = self._step(batch, batch_idx, step='val')
 
         # Save some outputs for visualization
         if batch_idx % 10 == 0:
@@ -163,7 +201,7 @@ class TSHearPLModule(pl.LightningModule):
         return sample['output_m']
 
     def test_step(self, batch, batch_idx):
-        _, sample = self._step(batch, step='test') # hier ggf noch was ändern
+        _, sample = self._step(batch, batch_idx, step='test') # hier ggf noch was ändern
 
         # Save some outputs for visualization
         if batch_idx % 10 == 0:

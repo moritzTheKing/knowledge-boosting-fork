@@ -15,6 +15,7 @@ import itertools
 
 
 def compute_decay(est, mix):
+    print("wird compute_decay ausgeführt")
     """
     [*, C, T]
     """
@@ -37,6 +38,7 @@ class Metrics(nn.Module):
         super().__init__()
         self.func = None
         self.name=name 
+        print("wird Metrics überhaupt aufgerufen")
         if name == 'snr':
             self.func = lambda est, gt, mix: snr(preds=est, target=gt)
         elif name == 'snr_i':
@@ -61,6 +63,7 @@ class Metrics(nn.Module):
         input: (*, S, C, T) if pit otherwise (*, C, T)
         output: (*)
         """
+        print("wird forward in Metrics aufgerufen")
         types = type(est)
         assert type(gt) == types and type(mix) == types, "All arrays must be the same type"
         if types == np.ndarray:

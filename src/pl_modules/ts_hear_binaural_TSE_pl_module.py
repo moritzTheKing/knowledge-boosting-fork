@@ -9,10 +9,15 @@ from torchmetrics.functional import(
     signal_noise_ratio as snr)
 import wandb
 from transformers.debug_utils import DebugUnderflowOverflow
+from torchmetrics.functional.audio.pesq import perceptual_evaluation_speech_quality as PESQ
+from torchmetrics.functional.audio.stoi import short_time_objective_intelligibility as STOI
+import torchaudio
+
 
 from src.losses.LossFn import LossFn
 
 import src.utils as utils
+from src.metrics.metrics import Metrics
 
 class TSHearPLModule(pl.LightningModule):
     def __init__(self, joint_model, joint_model_params, 
@@ -25,28 +30,35 @@ class TSHearPLModule(pl.LightningModule):
                  big_model_init_ckpt = None, loss_params=None):
         super(TSHearPLModule, self).__init__()
 
+        print("Wert von D aus B0-TSE.json small model:", small_model_params['D'])
+        print("Wert von L aus B0-TSE.json small model:", small_model_params['L'])
+        print("Wert von I aus B0-TSE.json small model:", small_model_params['I'])
+        print("Wert von J aus B0-TSE.json small model:", small_model_params['J'])
+        print("Wert von B aus B0-TSE.json small model:", small_model_params['B'])
+        print("Wert von H aus B0-TSE.json small model:", small_model_params['H'])
+        print("Wert von D aus B0-TSE.json big model:", big_model_params['D'])
+        print("Wert von L aus B0-TSE.json big model:", big_model_params['L'])
+        print("Wert von I aus B0-TSE.json big model:", big_model_params['I'])
+        print("Wert von J aus B0-TSE.json big model:", big_model_params['J'])
+        print("Wert von B aus B0-TSE.json big model:", big_model_params['B'])
+        print("Wert von H aus B0-TSE.json big model:", big_model_params['H'])
+
         _small_model = utils.import_attr(small_model)(**small_model_params)
         _big_model = utils.import_attr(big_model)(**big_model_params) 
-        
-        """print("small D has the value: ", small_model_params.D)
-        print("small L has the value: ", _small_model.L)
-        print("small I has the value: ", _small_model.I)
-        print("small J has the value: ", _small_model.J)
-        print("small B has the value: ", _small_model.B)
-        print("small H has the value: ", _small_model.H)
-
-        print("big D has the value: ", _big_model.D)
-        print("big L has the value: ", _big_model.L)
-        print("big I has the value: ", _big_model.I)
-        print("big J has the value: ", _big_model.J)
-        print("big B has the value: ", _big_model.B)
-        print("big H has the value: ", _big_model.H)"""
-
+    
         if big_model_init_ckpt is not None:
-            bm_ckpt = torch.load(big_model_init_ckpt)
-            _big_model.load_state_dict(bm_ckpt)
+
+            state_dict_uninitialized = _big_model.state_dict()
+            bm_ckpt = torch.load(big_model_init_ckpt, map_location=torch.device('cpu')) #map location entfernen sobald ich nicht debuggen möchte
+            state_dict_initialized = bm_ckpt['state_dict']
+
+            new_state_dict_initialized = {k.replace('model.', ''): v for k, v in state_dict_initialized.items() if k.startswith('model.')}
+
+            _big_model.load_state_dict(new_state_dict_initialized, strict=False)
+            #_big_model.load_state_dict(bm_ckpt)['state_dict'] #ggf das in eckigen Klammern wegnehmen und auch noch ein bisschen mehr
             # state_dict = torch.load(big_model_init_ckpt)['state_dict']
             # state_dict = {k[6:] : v for k, v in state_dict.items() if k.startswith('model.') }
+
 
         if freeze_bm:
             for param in _big_model.parameters():
@@ -102,9 +114,11 @@ class TSHearPLModule(pl.LightningModule):
             self.scheduler = scheduler
 
     def forward(self, x):
+        print("forward in TSHearPLModule")
         return self.joint_model(x)['output']
 
-    def _step(self, batch, step='train'):
+    def _step(self, batch, batch_idx, step='train'):
+        print("wie oft gehen wir durch _step durch")
         inputs, targets = batch
         batch_size = inputs['mixture'].shape[0]
 
@@ -158,7 +172,60 @@ class TSHearPLModule(pl.LightningModule):
 
         # Log additional metrics for validation and test
         if step in ['val', 'test']:
-            pass
+            output_sm_norm = output_sm / torch.abs(output_sm).max() * torch.abs(targets['target']).max()
+            pesq_sm = PESQ(preds=output_sm_norm, target=targets['target'], fs=16000, mode="wb")
+            self.log(
+                f'{step}/pesq_sm', pesq_sm.mean().to(self.device),
+                batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
+                sync_dist=True)
+            
+            stoi_sm = STOI(preds=output_sm_norm, target=targets['target'], fs=16000)
+            self.log(
+                f'{step}/stoi', stoi_sm.mean().to(self.device),
+                batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
+                sync_dist=True)
+            
+            # save the samples for the first 20 batches to listen to them
+            if batch_idx < 20:
+                for sample_idx in range(output_sm.size(0)):
+                    print("wir sind in der sample_idx for loop")
+                    # .detach() sorgt dafür, dass der Tensor vom Berechnungsgraphen getrennt wird, sodass keine Gradienten mehr berechnet werden
+                    # TODO: brauche ich hier detach() überhaupt?
+                    # .cpu() sorgt dafür, dass der Tensor auf die CPU verschoben wird (das erwartet torchaudio.save)
+                    sm_audio = output_sm[sample_idx].detach().cpu()
+
+                    # Wenn das Audio nur einen Channel (Mono, kein Stereo) hat, füge einen Dummy-Kanal hinzu
+                    if sm_audio.ndim == 1:
+                        sm_audio = sm_audio.unsqueeze(0)
+
+                    current_dir = os.path.dirname(__file__)
+                    base_output_dir = os.path.join(current_dir, "..", "data", "inference_samples")
+                    job_id = os.environ.get("SLURM_JOB_ID")
+
+                    # Erstelle einen Subordner, der nach der JobID benannt ist
+                    output_dir = os.path.join(base_output_dir, f"job_{job_id}_tse")
+
+                    os.makedirs(output_dir, exist_ok=True)
+                    sm_filename = os.path.join(output_dir, f"output_sm_batch{batch_idx}_sample{sample_idx}.wav")
+                    
+                    torchaudio.save(sm_filename, sm_audio, 16000)
+
+                # einmalig Trainingsdaten Mixture abspeichern zum anhören
+                for bat_idx in range(batch_size):
+                    # TODO: brauche ich dafür detach und cpu?
+                    mixtures_audio = inputs["mixture"][bat_idx].detach().cpu()
+
+                    if mixtures_audio.ndim == 1:
+                        mixtures_audio = mixtures_audio.unsqueeze(0)
+
+                    current_dir = os.path.dirname(__file__)
+                    base_output_dir = os.path.join(current_dir, "..", "data")
+                    output_dir = os.path.join(base_output_dir, "Mixtures")
+
+                    os.makedirs(output_dir, exist_ok=True)
+                    mixtures_data = os.path.join(output_dir, f"sample_{inputs['sample_dir'][bat_idx]}.wav")
+                    
+                    torchaudio.save(mixtures_data, mixtures_audio, 16000)
 
         output_bm = output_bm / torch.abs(output_bm).max() * torch.abs(targets['target']).max()
         output_sm = output_sm / torch.abs(output_sm).max() * torch.abs(targets['target']).max()
@@ -185,7 +252,7 @@ class TSHearPLModule(pl.LightningModule):
         return torch.stack(_vals)
 
     def training_step(self, batch, batch_idx):
-        loss_sm, loss_bm, sample = self._step(batch, step='train')
+        loss_sm, loss_bm, sample = self._step(batch, batch_idx, step='train')
 
         # Save some outputs for visualization
         if batch_idx % 200 == 0:
@@ -194,7 +261,7 @@ class TSHearPLModule(pl.LightningModule):
         return loss_sm
 
     def validation_step(self, batch, batch_idx):
-        _, _, sample = self._step(batch, step='val')
+        _, _, sample = self._step(batch, batch_idx, step='val')
 
         # Save some outputs for visualization
         if batch_idx % 10 == 0:
@@ -203,7 +270,7 @@ class TSHearPLModule(pl.LightningModule):
         return sample['output_sm'], sample['output_bm']
 
     def test_step(self, batch, batch_idx):
-        _, _, sample = self._step(batch, step='test')
+        _, _, sample = self._step(batch, batch_idx, step='test')
 
         # Save some outputs for visualization
         if batch_idx % 10 == 0:
