@@ -1,23 +1,8 @@
 {
     "version": "0.2.0",
     "configurations": [
-    
-        
-
-
-
-    
-    
-    
-    
-    
-    
-    
-        
-
-
             {
-            "name": "Python Debugger: Current File with Arguments",
+            "name": "Python Debugger: Test Dataset",
             "type": "debugpy",
             "request": "launch",
             "module": "src.trainer", 
@@ -30,6 +15,21 @@
                 "--output_dir",
                 "./src/data/inference_samples",
                 "--test"
+            ],
+            "preLaunchTask": "deletingLogs",
+            "justMyCode": false
+        },
+        {
+            "name": "Python Debugger: Training Dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.trainer", 
+            "console": "integratedTerminal",
+            "args": [
+                "--run_dir",
+                "logs/",
+                "--config",
+                "configs/TSE_joint/B0-TSE.json",
             ],
             "preLaunchTask": "deletingLogs",
             "justMyCode": false

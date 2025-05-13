@@ -41,10 +41,9 @@ class BakedTSE_dataset(Dataset):
         super().__init__()
         assert dset in ['train', 'val', 'test'], \
             "`dset` must be one of ['train', 'val', 'test']"
-        
+
         self.dset = dset
         self.mixtures_dir = os.path.join(mixtures_dir, dset)
-        
         self.sr = sr
         self.resample_rate = resample_rate
         self.chunks_delay = chunks_delay
@@ -90,6 +89,7 @@ class BakedTSE_dataset(Dataset):
         else:
             target = self.resampler(target2)
             spk_id = spk_id2
+
         # Resample
         mixture = self.resampler(mixture)
 

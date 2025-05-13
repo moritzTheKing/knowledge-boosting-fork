@@ -28,15 +28,14 @@ class TSHearPLModule(pl.LightningModule):
                  loss_params=None):
         super(TSHearPLModule, self).__init__()
 
-        self.model = utils.import_attr(model)(**model_params) 
-
         print("Wert von D aus SM-TSE-25.json model:", model_params['D'])
         print("Wert von L aus SM-TSE-25.json model:", model_params['L'])
         print("Wert von I aus SM-TSE-25.json model:", model_params['I'])
         print("Wert von J aus SM-TSE-25.json model:", model_params['J'])
         print("Wert von B aus SM-TSE-25.json model:", model_params['B'])
         print("Wert von H aus SM-TSE-25.json model:", model_params['H'])
-        
+        self.model = utils.import_attr(model)(**model_params) 
+
         if init_ckpt is not None:
             m_ckpt = torch.load(init_ckpt)
             self.model.load_state_dict(m_ckpt)
@@ -124,26 +123,44 @@ class TSHearPLModule(pl.LightningModule):
 
         # Log additional metrics for validation and test
         if step in ['val', 'test']:
-            output_sm_norm = output_m / torch.abs(output_m).max() * torch.abs(targets['target']).max()
-            pesq_sm = PESQ(preds=output_sm_norm, target=targets['target'], fs=16000, mode="wb")
+
+            # log metrics for model output and ground truth
+            output_m_norm = output_m / torch.abs(output_m).max() * torch.abs(targets['target']).max()
+            pesq_m = PESQ(preds=output_m_norm, target=targets['target'], fs=16000, mode="wb")
             self.log(
-                f'{step}/pesq_sm', pesq_sm.mean().to(self.device),
+                f'{step}/pesq_m_output_gt', pesq_m.mean().to(self.device),
                 batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
                 sync_dist=True)
             
-            stoi_sm = STOI(preds=output_sm_norm, target=targets['target'], fs=16000)
+            stoi_m = STOI(preds=output_m_norm, target=targets['target'], fs=16000)
             self.log(
-                f'{step}/stoi', stoi_sm.mean().to(self.device),
+                f'{step}/stoi_m_output_gt', stoi_m.mean().to(self.device),
                 batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
                 sync_dist=True)
             
+            # log metrics for model input (mixture) and ground truth
+            inputs['mixture'] = inputs['mixture'] / torch.abs(inputs['mixture']).max() * torch.abs(targets['target']).max() # TODO: weiß nicht ob ich diese Zeile noch brauche
+            pesq_m = PESQ(preds=inputs['mixture'], target=targets['target'], fs=16000, mode="wb")
+            self.log(
+                f'{step}/pesq_m_input_gt', pesq_m.mean().to(self.device),
+                batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
+                sync_dist=True)
+            
+            stoi_m = STOI(preds=inputs['mixture'], target=targets['target'], fs=16000)
+            self.log(
+                f'{step}/stoi_m_input_gt', stoi_m.mean().to(self.device),
+                batch_size=batch_size, on_step=False, on_epoch=True, prog_bar=True,
+                sync_dist=True)
+
+        if step =='test':
             # save the samples for the first 20 batches to listen to them
             if batch_idx < 20:
                 for sample_idx in range(output_m.size(0)):
-                    print("wir sind in der sample_idx for loop")
+                    output_m_norm = output_m / torch.abs(output_m).max() * torch.abs(targets['target']).max()
+
                     # .detach() sorgt dafür, dass der Tensor vom Berechnungsgraphen getrennt wird, sodass keine Gradienten mehr berechnet werden
                     # .cpu() sorgt dafür, dass der Tensor auf die CPU verschoben wird (das erwartet torchaudio.save)
-                    m_audio = output_m[sample_idx].detach().cpu()
+                    m_audio = output_m_norm[sample_idx].detach().cpu()
 
                     # Wenn das Audio nur einen Channel (Mono, kein Stereo) hat, füge einen Dummy-Kanal hinzu
                     if m_audio.ndim == 1:
@@ -154,11 +171,40 @@ class TSHearPLModule(pl.LightningModule):
                     job_id = os.environ.get("SLURM_JOB_ID")
 
                     # Erstelle einen Subordner, der nach der JobID benannt ist
-                    output_dir = os.path.join(base_output_dir, f"job_{job_id}_small")
+                    output_dir = os.path.join(base_output_dir, f"job_{job_id}_big", "Output")
                     os.makedirs(output_dir, exist_ok=True)
                     m_filename = os.path.join(output_dir, f"output_sm_batch{batch_idx}_sample{sample_idx}.wav")
                     
                     torchaudio.save(m_filename, m_audio, 16000)
+
+                # Trainingsdaten Mixture und Targets abspeichern zum anhören
+                for bat_idx in range(batch_size):
+                    mixtures_audio = inputs["mixture"][bat_idx].detach().cpu()
+                    targets_audio = targets["target"][bat_idx].detach().cpu()
+
+
+                    if mixtures_audio.ndim == 1:
+                        mixtures_audio = mixtures_audio.unsqueeze(0)
+
+                    if targets_audio.ndim == 1:
+                        targets_audio = targets_audio.unsqueeze(0)   
+
+                    current_dir = os.path.dirname(__file__)
+                    base_output_dir = os.path.join(current_dir, "..", "data", "inference_samples")
+                    job_id = os.environ.get("SLURM_JOB_ID")
+                    output_dir_mix = os.path.join(base_output_dir, f"job_{job_id}_big", "Mixture")
+                    output_dir_tar = os.path.join(base_output_dir, f"job_{job_id}_big", "Targets")
+
+
+                    os.makedirs(output_dir_mix, exist_ok=True)
+                    os.makedirs(output_dir_tar, exist_ok=True)
+
+                    mixtures_data = os.path.join(output_dir_mix, f"mixture_batch{batch_idx}_sample_{bat_idx}.wav")
+                    targets_data = os.path.join(output_dir_tar, f"targets_batch{batch_idx}_sample_{bat_idx}.wav")
+
+                    torchaudio.save(mixtures_data, mixtures_audio, 16000)
+                    torchaudio.save(targets_data, targets_audio, 16000)
+
 
         output_m = output_m / torch.abs(output_m).max() * torch.abs(targets['target']).max()
 

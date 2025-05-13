@@ -8,7 +8,6 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 import wandb
 from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning import Fabric
-import torchaudio
 
 import time
 
@@ -90,8 +89,6 @@ def main(args, hparams):
 
     # Test and return if --test flag is set
     if args.test:
-        """inference = Inference()
-        inference.run(args)"""
 
         # Initialize the test dataset
         test_ds = utils.import_attr(hparams.test_dataset)(**hparams.test_data_args)
@@ -104,62 +101,7 @@ def main(args, hparams):
 
         for loss in results:
             print(f"Results hat {len(loss)} Elemente: {loss}")
-
-        #os.makedirs(args.output_dir, exist_ok=True)
-
-        # Angenommen, test_step gibt ein Tupel (output_sm, output_bm) pro Batch zurück,
-        # iterieren wir über alle Batches und speichern jedes Sample als WAV-Datei.
-        # Hierbei nehmen wir an, dass die Ausgaben 1D-Tensoren (Waveform) sind.
-        """sample_rate = hparams.pl_module_args["sr"]
-
-        # nur für die ersten 20 Batches aka 60 Samples
-        for batch_idx, batch_results in enumerate(results[:20]):
-            print(f"Batch {batch_idx} hat {len(batch_results)} Elemente: {batch_results}")
-            # TODO: batch_results enthält nicht ein Tupel (output_sm, output_bm) 
-            # sondern die Losses mit deren Werten
-            output_sm, output_bm = batch_results
-            # Iteriere über jedes Sample im Batch
-            for sample_idx in range(output_sm.size(0)):
-                # .detach() sorgt dafür, dass der Tensor vom Berechnungsgraphen getrennt wird, sodass keine Gradienten mehr berechnet werden
-                # TODO: brauche ich hier detach() überhaupt?
-                # .cpu() sorgt dafür, dass der Tensor auf die CPU verschoben wird (das erwartet torchaudio.save)
-                sm_audio = output_sm[sample_idx].detach().cpu()
-                bm_audio = output_bm[sample_idx].detach().cpu()
-
-                # Wenn das Audio nur einen Channel (Mono, kein Stereo) hat, füge einen Dummy-Kanal hinzu
-                if sm_audio.ndim == 1:
-                    sm_audio = sm_audio.unsqueeze(0)
-                if bm_audio.ndim == 1:
-                    bm_audio = bm_audio.unsqueeze(0)
-
-                sm_filename = os.path.join(args.output_dir, f"output_sm_batch{batch_idx}_sample{sample_idx}.wav")
-                bm_filename = os.path.join(args.output_dir, f"output_bm_batch{batch_idx}_sample{sample_idx}.wav")
-                
-                torchaudio.save(sm_filename, sm_audio, sample_rate)
-                torchaudio.save(bm_filename, bm_audio, sample_rate)
-
-        #TODO: noch Metriken wie PESQ auswerten lassen
-        pesq_metric = Metrics(name="PESQ")
-        all_pesq_scores = []
-
-        # pl_module.eval()
-        with torch.no_grad():
-            for batch in test_dl:
-                inputs, targets = batch
-
-                # hier wird forward aus tse_hear_binaural_TSE_pl_module aufgerufen
-                output_sm = pl_module(inputs)
-                
-                # hier wird forward aus Metricks aufgerufen
-                batch_pesq = pesq_metric(output_sm, targets['target'], inputs['mixture'])
-                
-                # Falls batch_pesq mehrere Werte (Channel) enthält. 
-                # Brauche ich das überhaupt noch weil in Metriks.forward steht ja auch sowas?
-                all_pesq_scores.append(batch_pesq) #.mean().item())
-
-        mean_pesq = sum(all_pesq_scores) / len(all_pesq_scores)
-        print(f"Mean PESQ over test set: {mean_pesq:.3f}")"""
-
+        
         return
 
     # Initialize the train dataset
