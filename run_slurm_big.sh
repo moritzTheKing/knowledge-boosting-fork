@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --time=0-02:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --partition=gpu
 #SBATCH --job-name=test_big
 #SBATCH --mem=32000M
@@ -9,6 +9,8 @@
 #SBATCH --output=./output/slurm.%j.out
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=m.marksteller@tu-bs.de
+#SBATCH --exclude=gpu04
+
 
 #SBATCH --begin=now
 

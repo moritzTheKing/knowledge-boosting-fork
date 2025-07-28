@@ -140,9 +140,16 @@ if __name__ == '__main__':
 
     if os.environ.get('LOCAL_RANK', None) is None:
         if not args.resume and not args.test:
-            assert not os.path.exists(args.run_dir), \
+            """assert not os.path.exists(args.run_dir), \
                 f"run_dir {args.run_dir} already exists. " \
-                "Use --resume if you intend to resume an existing run."
+                "Use --resume if you intend to resume an existing run." """
+            base = args.run_dir
+            i = 1
+            while os.path.exists(args.run_dir):
+                args.run_dir = f"{base}_run{i}"
+                i += 1
+            print(f"Verwende run_dir: {args.run_dir}")
+
 
     # Load hyperparameters
     hparams = utils.Params(args.config)

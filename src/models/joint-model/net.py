@@ -110,6 +110,7 @@ class JointModel(nn.Module):
 
         # Process with small model
         out_s = self.small(inputs, embed=_e, pad=pad, current_state=current_state['sm_bufs'])
+
         current_state['sm_bufs'] = out_s['next_state']
         
         return out_b, out_s

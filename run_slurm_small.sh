@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --time=0-00:10:00
-#SBATCH --partition=debug
+#SBATCH --time=2-00:00:00
+#SBATCH --partition=gpu
 #SBATCH --job-name=test_small
 #SBATCH --mem=32000M
 #SBATCH --gres=gpu:1080:1
@@ -9,6 +9,8 @@
 #SBATCH --output=./output/slurm.%j.out
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=m.marksteller@tu-bs.de
+#SBATCH --exclude=gpu04
+
 
 #SBATCH --begin=now
 

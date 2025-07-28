@@ -30,7 +30,8 @@
             "generate_embeddings": false,
             "use_alignment": true,
             "use_cross_attention": true,
-            "delay": 0
+            "delay": 0,
+            "cross_attention_ctx_len": 50
         },
         "big_model": "src.models.tfgridnet_TSE_causal_torch_stft_layernorm.net.Net",
         "big_model_params": {
