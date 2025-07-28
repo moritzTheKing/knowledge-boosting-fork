@@ -1,6 +1,6 @@
 # Knowledge Boosting (Model Collaboration During Low-Latency Inference)
 
-[![Gradio demo](https://img.shields.io/badge/arxiv-abs-green)](https://arxiv.org/abs/2407.11055) [![Gradio demo](https://img.shields.io/badge/Interspeech%202024-pdf-blue)](https://arxiv.org/abs/2407.11055)
+[![Gradio demo](https://img.shields.io/badge/arxiv-abs-green)](https://arxiv.org/abs/2407.11055) [![Gradio demo](https://img.shields.io/badge/Interspeech%202024-pdf-blue)](https://www.isca-archive.org/interspeech_2024/srinivas24_interspeech.html#)
 
 This repository provides code for the Knowledge Boosting architecture proposed in the paper, __Knowledge boosting during low latency inference__, presented at Interspeech 2024. 
 Knowledge Boosting is a technique to enhance small model performance on-device during inference with assistance from a large model on a remote device. 
@@ -58,11 +58,12 @@ Note that in the joint configurations specifically, you will need to specify the
 
 ## Citation
 
-    @misc{srinivas2024knowledgeboosting,
-      title={Knowledge boosting during low-latency inference}, 
-      author={Vidya Srinivas and Malek Itani and Tuochao Chen and Emre Sefik Eskimez and Takuya Yoshioka and Shyamnath Gollakota},
-      year={2024},
-      eprint={2407.11055},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG}
-    }
+@inproceedings{srinivas-knowledgeboosting,
+  title     = {Knowledge boosting during low-latency inference},
+  author    = {Vidya Srinivas and Malek Itani and Tuochao Chen and Sefik Emre Eskimez and Takuya Yoshioka and Shyamnath Gollakota},
+  year      = {2024},
+  booktitle = {Interspeech 2024},
+  pages     = {4338--4342},
+  doi       = {10.21437/Interspeech.2024-331},
+  issn      = {2958-1796},
+}
